@@ -17,6 +17,7 @@ discord_channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
 
 # Initialize counters
 success_count, fail_count = 0, 0
+last_success_count, last_fail_count = 0, 0
 
 # Set up the Discord bot
 intents = discord.Intents.default()
@@ -34,18 +35,34 @@ async def on_ready():
     asyncio.create_task(run_lilypad())  # Start lilypad task concurrently
     report_stats.start()  # Start scheduled reporting
 
-@tasks.loop(hours=12)
+@tasks.loop(minutes=10)
 async def report_stats():
+    global last_success_count, last_fail_count
+
+    # Calculate total successes and failures
     total_count = success_count + fail_count
     success_rate = success_count / total_count * 100 if total_count > 0 else 0
-    msg = (f"Success rate: {success_rate:.2f}% ({success_count}/{total_count})")
+
+    # Calculate successes and failures since the last report
+    recent_successes = success_count - last_success_count
+    recent_fails = fail_count - last_fail_count
+    recent_total = recent_successes + recent_fails
+    recent_success_rate = recent_successes / recent_total * 100 if recent_total > 0 else 0
+
+    msg = f"[SDXL] Hey Lilycrew! It's been 10 minutes, here are our new stats:\n" \
+          f"[SDXL] Overall success rate: {success_rate:.2f}% ({success_count}/{total_count})\n" \
+          f"[SDXL] Last 12 hours success rate: {recent_success_rate:.2f}% ({recent_successes}/{recent_total})"
     print("Sending msg: " + msg)
     await channel.send(msg)
+
+    # Update last counters
+    last_success_count = success_count
+    last_fail_count = fail_count
 
 @report_stats.before_loop
 async def before_report_stats():
     print("Initial delay for 12 hours before starting the report_stats loop.")
-    await asyncio.sleep(43200)  # Sleep for 12 hours (12 hours * 3600 seconds/hour)
+    await asyncio.sleep(300)  # Sleep for 12 hours (12 hours * 3600 seconds/hour)
 
 async def run_lilypad():
     global success_count, fail_count, channel
@@ -84,7 +101,7 @@ async def run_lilypad():
             except asyncio.TimeoutError:
                 elapsed_time = datetime.datetime.now() - start_time
                 if elapsed_time.total_seconds() > timeout:
-                    msg = f"WARNING: Job running for over 5 minutes. Elapsed time: {elapsed_time}"
+                    msg = f"[SDXL] WARNING: Job running for over 5 minutes. Elapsed time: {elapsed_time}"
                     print("Sending msg: " + msg)
                     await channel.send(msg)
                     break  # Only send the warning once
@@ -117,8 +134,9 @@ async def run_lilypad():
             if success:
                 success_count += 1
                 msg = f"[SDXL] SUCCESS [{success_count}/{success_count + fail_count} succeeded] {cid} [Time taken: {duration}]"
-                print("Sending msg: " + msg)
-                await channel.send(msg)
+                print(msg)
+                # In debug mode, we should output even during successful runs
+                # await channel.send(msg)
                 time.sleep(1)
             else:
                 fail_count += 1
