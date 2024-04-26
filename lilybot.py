@@ -35,7 +35,7 @@ async def on_ready():
     asyncio.create_task(run_lilypad())  # Start lilypad task concurrently
     report_stats.start()  # Start scheduled reporting
 
-@tasks.loop(minutes=10)
+@tasks.loop(hours=12)
 async def report_stats():
     global last_success_count, last_fail_count
 
@@ -62,7 +62,7 @@ async def report_stats():
 @report_stats.before_loop
 async def before_report_stats():
     print("Initial delay for 12 hours before starting the report_stats loop.")
-    await asyncio.sleep(300)  # Sleep for 12 hours (12 hours * 3600 seconds/hour)
+    await asyncio.sleep(43200)  # Sleep for 12 hours (12 hours * 3600 seconds/hour)
 
 async def run_lilypad():
     global success_count, fail_count, channel
