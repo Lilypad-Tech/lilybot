@@ -104,7 +104,7 @@ async def run_lilypad():
         )
 
         # Set up a timer for the warning message
-        timeout = 600  # 5 minutes in seconds
+        timeout = 600  # 10 minutes in seconds
         while True:
             try:
                 await asyncio.wait_for(process.wait(), timeout=1)
