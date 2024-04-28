@@ -4,6 +4,7 @@ import subprocess
 import datetime
 import time
 import asyncio
+import aiohttp
 from dotenv import load_dotenv
 from pathlib import Path
 import discord
@@ -14,10 +15,12 @@ load_dotenv()
 web3_private_key = os.getenv('WEB3_PRIVATE_KEY')
 discord_token = os.getenv('DISCORD_TOKEN')
 discord_channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
+heartbeat_url = os.getenv('HEARTBEAT_URL')
 
 # Initialize counters
 success_count, fail_count = 0, 0
 last_success_count, last_fail_count = 0, 0
+late_job = False
 
 # Set up the Discord bot
 intents = discord.Intents.default()
@@ -35,6 +38,14 @@ async def on_ready():
     asyncio.create_task(run_lilypad())  # Start lilypad task concurrently
     report_stats.start()  # Start scheduled reporting
 
+async def send_heartbeat():
+    async with aiohttp.ClientSession() as session:
+        async with session.post(heartbeat_url) as response:
+            if response.status == 200:
+                print('Heartbeat sent successfully')
+            else:
+                print(f'Failed to send heartbeat. Status code: {response.status}')
+
 @tasks.loop(hours=12)
 async def report_stats():
     global last_success_count, last_fail_count
@@ -49,9 +60,9 @@ async def report_stats():
     recent_total = recent_successes + recent_fails
     recent_success_rate = recent_successes / recent_total * 100 if recent_total > 0 else 0
 
-    msg = f"[SDXL] Hey Lilycrew! It's been 10 minutes, here are our new stats:\n" \
-          f"[SDXL] Overall success rate: {success_rate:.2f}% ({success_count}/{total_count})\n" \
-          f"[SDXL] Last 12 hours success rate: {recent_success_rate:.2f}% ({recent_successes}/{recent_total})"
+    msg = f"[SDXL] Hey Lilycrew! It's been 12 hours, here are our new stats:\n" \
+          f"🚀Overall success rate: {success_rate:.2f}% ({success_count}/{total_count})\n" \
+          f"📖Last 12 hours success rate: {recent_success_rate:.2f}% ({recent_successes}/{recent_total})"
     print("Sending msg: " + msg)
     await channel.send(msg)
 
@@ -65,7 +76,7 @@ async def before_report_stats():
     await asyncio.sleep(43200)  # Sleep for 12 hours (12 hours * 3600 seconds/hour)
 
 async def run_lilypad():
-    global success_count, fail_count, channel
+    global success_count, fail_count, channel, late_job
 
     while True:  # Loop continuously
         # Print the current date and time in UTC
@@ -93,7 +104,7 @@ async def run_lilypad():
         )
 
         # Set up a timer for the warning message
-        timeout = 300  # 5 minutes in seconds
+        timeout = 600  # 5 minutes in seconds
         while True:
             try:
                 await asyncio.wait_for(process.wait(), timeout=1)
@@ -101,7 +112,9 @@ async def run_lilypad():
             except asyncio.TimeoutError:
                 elapsed_time = datetime.datetime.now() - start_time
                 if elapsed_time.total_seconds() > timeout:
-                    msg = f"[SDXL] WARNING: Job running for over 5 minutes. Elapsed time: {elapsed_time}"
+                    msg = f"[SDXL] WARNING: Job running for over 10 minutes. Elapsed time: {elapsed_time}"
+                    # Mark the job as late
+                    late_job = True
                     print("Sending msg: " + msg)
                     await channel.send(msg)
                     break  # Only send the warning once
@@ -135,21 +148,28 @@ async def run_lilypad():
                 success_count += 1
                 msg = f"[SDXL] SUCCESS [{success_count}/{success_count + fail_count} succeeded] {cid} [Time taken: {duration}]"
                 print(msg)
+                if late_job:
+                    msg = f"[SDXL] WARNING: {cid} was late."
+                    print(msg)
                 # In debug mode, we should output even during successful runs
                 # await channel.send(msg)
+                asyncio.create_task(send_heartbeat())
                 time.sleep(1)
+                late_job = False
             else:
                 fail_count += 1
                 msg = f"[SDXL] FAIL [validation failed] [{success_count}/{success_count + fail_count} succeeded] [Time taken: {duration}]"
                 print("Sending msg: " + msg)
                 await channel.send(msg)
                 time.sleep(1)
+                late_job = False
         else:
             fail_count += 1
             msg = f"[SDXL] FAIL [exit code: {exit_code}] [{success_count}/{success_count + fail_count} succeeded] [Time taken: {duration}]"
             print("Sending msg: " + msg)
             await channel.send(msg)
             time.sleep(3)
+            late_job = False
 
 # Run the lilypad task and the Discord bot concurrently
 async def main():
