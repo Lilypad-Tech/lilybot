@@ -61,8 +61,8 @@ async def report_stats():
     recent_success_rate = recent_successes / recent_total * 100 if recent_total > 0 else 0
 
     msg = f"[SDXL] Hey Lilycrew! It's been 12 hours, here are our new stats:\n" \
-          f"🚀Overall success rate: {success_rate:.2f}% ({success_count}/{total_count})\n" \
-          f"📖Last 12 hours success rate: {recent_success_rate:.2f}% ({recent_successes}/{recent_total})"
+          f"🚀 Overall success rate: {success_rate:.2f}% ({success_count}/{total_count})\n" \
+          f"📖 Last 12 hours success rate: {recent_success_rate:.2f}% ({recent_successes}/{recent_total})"
     print("Sending msg: " + msg)
     await channel.send(msg)
 
