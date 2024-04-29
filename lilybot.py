@@ -116,18 +116,6 @@ async def run_lilypad():
                 elapsed_time = datetime.datetime.now() - start_time
                 elapsed_seconds = elapsed_time.total_seconds()
 
-                if elapsed_seconds > max_timeout:
-                    # Job has exceeded the maximum timeout (20 minutes)
-                    msg = f"[SDXL] ERROR: Job exceeded maximum timeout of 20 minutes. TERMINATING the job. Elapsed time: {elapsed_time}"
-                    print("Sending msg: " + msg)
-                    await channel.send(msg)
-                    process.terminate()  # Terminate the job process
-                    stdout, stderr = await process.communicate()
-                    exit_code = process.returncode
-                    # Sleep before trying jobs again
-                    time.sleep(30)
-                    break
-
                 if elapsed_seconds > warning_timeout and not warning_sent:
                     # Job has run for over 10 minutes and warning has not been sent yet
                     msg = f"[SDXL] WARNING: Job running for over 10 minutes. Elapsed time: {elapsed_time}"
@@ -136,6 +124,16 @@ async def run_lilypad():
                     warning_sent = True
                     # Mark the job as late
                     late_job = True
+
+                if elapsed_seconds > max_timeout:
+                    # Job has exceeded the maximum timeout (20 minutes)
+                    msg = f"[SDXL] ERROR: Job exceeded maximum timeout of 20 minutes. TERMINATING the job. Elapsed time: {elapsed_time}"
+                    print("Sending msg: " + msg)
+                    await channel.send(msg)
+                    process.kill()  # Kill the job process
+                    exit_code = 1337
+                    time.sleep(10)
+                    break
 
         # Stop the timer
         end_time = datetime.datetime.now()
@@ -181,6 +179,8 @@ async def run_lilypad():
         else:
             fail_count += 1
             msg = f"[SDXL] FAIL [exit code: {exit_code}] [{success_count}/{success_count + fail_count} succeeded] [Time taken: {duration}]"
+            if exit_code == 1337:
+                msg += "\n This job timed out and was forcibly killed. [FAIL]"
             print("Sending msg: " + msg)
             await channel.send(msg)
             time.sleep(3)
