@@ -1,0 +1,16 @@
+[Unit]
+Description=Lilybot Service
+After=network.target
+
+[Service]
+Type=simple
+User=lilypad-test
+WorkingDirectory=/home/lilypad-test/lilybot
+EnvironmentFile=/home/lilypad-test/lilybot/.env
+ExecStart=/usr/bin/python3 -u lilybot.py
+Restart=on-failure
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
