@@ -103,24 +103,39 @@ async def run_lilypad():
             env={"WEB3_PRIVATE_KEY": web3_private_key}
         )
 
-        # Set up a timer for the warning message
-        timeout = 600  # 10 minutes in seconds
+        # Set up timers for warning and timeout
+        warning_timeout = 600  # 10 minutes in seconds
+        max_timeout = 1200  # 20 minutes in seconds
+        warning_sent = False
+
         while True:
             try:
                 await asyncio.wait_for(process.wait(), timeout=1)
                 break  # Process completed within 1 second check
             except asyncio.TimeoutError:
                 elapsed_time = datetime.datetime.now() - start_time
-                if elapsed_time.total_seconds() > timeout:
-                    msg = f"[SDXL] WARNING: Job running for over 10 minutes. Elapsed time: {elapsed_time}"
-                    # Mark the job as late
-                    late_job = True
+                elapsed_seconds = elapsed_time.total_seconds()
+
+                if elapsed_seconds > max_timeout:
+                    # Job has exceeded the maximum timeout (20 minutes)
+                    msg = f"[SDXL] ERROR: Job exceeded maximum timeout of 20 minutes. TERMINATING the job. Elapsed time: {elapsed_time}"
                     print("Sending msg: " + msg)
                     await channel.send(msg)
-                    break  # Only send the warning once
+                    process.terminate()  # Terminate the job process
+                    stdout, stderr = await process.communicate()
+                    exit_code = process.returncode
+                    # Sleep before trying jobs again
+                    time.sleep(30)
+                    break
 
-        stdout, stderr = await process.communicate()
-        exit_code = process.returncode
+                if elapsed_seconds > warning_timeout and not warning_sent:
+                    # Job has run for over 10 minutes and warning has not been sent yet
+                    msg = f"[SDXL] WARNING: Job running for over 10 minutes. Elapsed time: {elapsed_time}"
+                    print("Sending msg: " + msg)
+                    await channel.send(msg)
+                    warning_sent = True
+                    # Mark the job as late
+                    late_job = True
 
         # Stop the timer
         end_time = datetime.datetime.now()
