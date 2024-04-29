@@ -16,6 +16,7 @@ web3_private_key = os.getenv('WEB3_PRIVATE_KEY')
 discord_token = os.getenv('DISCORD_TOKEN')
 discord_channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
 heartbeat_url = os.getenv('HEARTBEAT_URL')
+personality = os.getenv('PERSONALITY')
 
 # Initialize counters
 success_count, fail_count = 0, 0
@@ -33,6 +34,9 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     channel = bot.get_channel(discord_channel_id)
     msg = "Lilybot is now running!"
+    print("Loading personality core.")
+    if personality:
+        msg += " " + personality
     print("Sending msg: " + msg)
     await channel.send(msg)
     asyncio.create_task(run_lilypad())  # Start lilypad task concurrently
