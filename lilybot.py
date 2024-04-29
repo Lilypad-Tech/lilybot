@@ -82,6 +82,9 @@ async def before_report_stats():
 async def run_lilypad():
     global success_count, fail_count, channel, late_job
 
+    # Set exit_code to an "unset" value (4200)
+    exit_code = 4200
+
     while True:  # Loop continuously
         # Print the current date and time in UTC
         utc_now = datetime.datetime.utcnow()
@@ -138,6 +141,9 @@ async def run_lilypad():
                     exit_code = 1337
                     time.sleep(10)
                     break
+
+        stdout, stderr = await process.communicate()
+        exit_code = process.returncode
 
         # Stop the timer
         end_time = datetime.datetime.now()
