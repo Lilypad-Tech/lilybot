@@ -1,0 +1,11 @@
+services:
+  lilybot:
+    build: .
+    # Uncomment the two lines commented lines below if persistent data storage is needed.
+    #volumes:
+    # - .:/app
+    env_file:
+      - .env
+    ports:
+      # Adjust ports if needed.
+      - "6060:6060"
